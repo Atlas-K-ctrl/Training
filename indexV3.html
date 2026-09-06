@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Atlas Training</title>
+<meta name="theme-color" content="#0b0c10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0b0c10;
+    --panel: #15171c;
+    --panel2: #1c1f26;
+    --text: #f5f7fb;
+    --muted: #a6acb8;
+    --line: #2b2f38;
+    --accent: #ffffff;
+    --good: #b7f7c7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 22px 16px 80px; }
+  .hero {
+    padding: 18px 0 8px;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  h1 { margin: 0; font-size: clamp(34px, 6vw, 64px); letter-spacing: -0.04em; line-height: .95; }
+  .subtitle { color: var(--muted); margin-top: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 18px; }
+  .card {
+    background: linear-gradient(180deg, var(--panel), #111318);
+    border: 1px solid var(--line); border-radius: 20px; padding: 18px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.18);
+  }
+  .span-8 { grid-column: span 8; } .span-4 { grid-column: span 4; }
+  .span-12 { grid-column: span 12; } .span-6 { grid-column: span 6; }
+  @media (max-width: 760px) {
+    .span-8,.span-4,.span-6 { grid-column: span 12; }
+  }
+  .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .16em; }
+  h2 { margin: 7px 0 12px; font-size: 25px; letter-spacing: -.02em; }
+  h3 { margin: 10px 0 5px; font-size: 16px; }
+  .pill { display:inline-block; padding: 6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; margin-right:6px; }
+  .workout-list { display: grid; gap: 9px; margin-top: 12px; }
+  .exercise {
+    padding: 12px; border:1px solid var(--line); border-radius:14px; background:var(--panel2);
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+  }
+  .exercise small { color: var(--muted); display:block; margin-top:3px; }
+  button, input, select, textarea {
+    font: inherit; border-radius: 12px; border: 1px solid var(--line);
+  }
+  button {
+    background: var(--text); color:#0b0c10; padding:11px 14px; font-weight:700; cursor:pointer;
+  }
+  button.secondary { background:transparent; color:var(--text); }
+  button.danger { background:transparent; color:#ffb8b8; border-color:#633; }
+  input, select, textarea {
+    width:100%; background:#0f1116; color:var(--text); padding:11px 12px; outline:none;
+  }
+  label { display:block; color:var(--muted); font-size:12px; margin-bottom:6px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width: 520px){ .row{grid-template-columns:1fr;} }
+  .timer { font-size:38px; font-weight:800; letter-spacing:-.03em; margin:10px 0 14px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .stat { font-size:28px; font-weight:800; }
+  .muted { color:var(--muted); }
+  .log { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+  canvas { width:100%; height:230px; background:#0f1116; border-radius:14px; border:1px solid var(--line); }
+  .week-nav { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .daybtn { background:transparent; color:var(--muted); padding:8px 10px; }
+  .daybtn.active { background:var(--text); color:#0b0c10; }
+  .success { color: var(--good); }
+
+  .exercise-detail {
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--panel2);
+    overflow:hidden;
+  }
+  .exercise-detail summary {
+    list-style:none;
+    padding:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    cursor:pointer;
+  }
+  .exercise-detail summary::-webkit-details-marker { display:none; }
+  .exercise-detail small { color:var(--muted); display:block; margin-top:3px; }
+  .exercise-body {
+    border-top:1px solid var(--line);
+    padding:12px;
+    color:var(--muted);
+    line-height:1.55;
+  }
+  .exercise-body p { margin:0 0 12px; }
+  .complete-row {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:0;
+    color:var(--text);
+    font-size:13px;
+  }
+  .complete-row input { width:18px; height:18px; }
+  .chev { color:var(--muted); transition:transform .2s ease; font-size:18px; }
+  details[open] .chev { transform:rotate(180deg); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Atlas Training</div>
+      <h1>Train. Log.<br>Progress.</h1>
+      <div class="subtitle" id="todayText"></div>
+    </div>
+    <div><span class="pill">Gym Base</span><span class="pill">Baseball</span><span class="pill">Badminton</span></div>
+  </div>
+
+  <div class="grid">
+    <section class="card span-8">
+      <div class="eyebrow">Today's Plan</div>
+      <h2 id="dayTitle">Workout</h2>
+      <div class="actions" style="margin:10px 0 12px">
+      <button id="todayBtn">Today</button>
+      <button class="secondary" id="toggleWeekBtn">View Week</button>
+    </div>
+    <div class="week-nav" id="weekNav" style="display:none"></div>
+      <div class="workout-list" id="workoutList"></div>
+    </section>
+
+    <section class="card span-4">
+      <div class="eyebrow">Session Timer</div>
+      <div class="timer" id="timer">00:00:00</div>
+      <div class="actions">
+        <button id="startBtn">Start</button>
+        <button class="secondary" id="pauseBtn">Pause</button>
+        <button class="secondary" id="finishBtn">Finish</button>
+      </div>
+      <div class="muted" style="margin-top:12px;font-size:13px;">Timer duration is saved when you finish and log the session.</div>
+    </section>
+
+    <section class="card span-6">
+      <div class="eyebrow">Morning Weigh-In</div>
+      <h2>Weight</h2>
+      <div class="row">
+        <div>
+          <label>Date</label>
+          <input id="weightDate" type="date"/>
+        </div>
+        <div>
+          <label>Weight (kg)</label>
+          <input id="weightInput" type="number" step="0.1" placeholder="97.0"/>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button id="saveWeight">Save Weight</button>
+      </div>
+      <div id="weightMsg" class="success" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="card span-6">
+      <div class="eyebrow">Post-Workout Check-In</div>
+      <h2>How did it go?</h2>
+      <div class="row">
+        <div>
+          <label>Day Status</label>
+          <select id="dayStatus">
+            <option value="workout" selected>Workout Completed</option>
+            <option value="rested">Rested</option>
+            <option value="no_workout">No Workout</option>
+          </select>
+        </div>
+        <div>
+          <label>Effort / Rating</label>
+          <select id="rating">
+            <option value="5">5 — Excellent</option>
+            <option value="4">4 — Good</option>
+            <option value="3" selected>3 — Okay</option>
+            <option value="2">2 — Tough</option>
+            <option value="1">1 — Poor</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label>Duration (minutes)</label>
+          <input id="durationManual" type="number" min="0" placeholder="Auto-filled"/>
+        </div>
+        <div>
+          <label>Log Type</label>
+          <input value="Daily activity log" disabled/>
+        </div>
+      </div>
+      <label style="margin-top:10px">Notes</label>
+      <textarea id="notes" rows="3" placeholder="Energy, soreness, what felt strong..."></textarea>
+      <div class="actions" style="margin-top:10px">
+        <button id="saveSession">Log Session</button>
+      </div>
+      <div id="sessionMsg" class="success" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="eyebrow">Weight Trend</div>
+      <h2>Weekly & Monthly Progress</h2>
+      <div class="row">
+        <div>
+          <div class="muted">Latest</div>
+          <div class="stat" id="latestWeight">—</div>
+        </div>
+        <div>
+          <div class="muted">Change from first log</div>
+          <div class="stat" id="weightChange">—</div>
+        </div>
+      </div>
+      <canvas id="chart" width="900" height="230"></canvas>
+      <div id="trendText" class="muted" style="margin-top:10px;"></div>
+    </section>
+
+
+
+    <section class="card span-12">
+      <div class="eyebrow">Cloud Sync</div><p class="muted" style="margin-top:8px">Enter your email and we’ll send you a secure sign-in link. Open it on this device to sign in.</p>
+      <h2>Atlas Account</h2>
+      <div class="muted" id="cloudStatus" style="margin-bottom:12px;">
+        Local mode — connect Supabase to enable cloud sync.
+      </div>
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"/>
+        </div>
+        <div>
+          <label>6-digit code</label>
+          <input id="authOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"/>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button id="sendCodeBtn">Send Sign-In Link</button>
+        <button class="secondary" id="verifyCodeBtn">Check Email</button>
+        <button class="secondary" id="syncNowBtn">Sync Now</button>
+        <button class="danger" id="signOutBtn" style="display:none">Sign Out</button>
+      </div>
+      <div id="authMsg" class="success" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="eyebrow">Data & Backup</div>
+      <h2>Keep Your History Safe</h2>
+      <div class="muted" style="margin-bottom:12px;">
+        Your data is stored on this device in your browser. Export a backup occasionally so you can restore it later or move it to another phone/computer.
+      </div>
+      <div class="actions">
+        <button id="exportData">Export Backup</button>
+        <label class="secondary" style="display:inline-flex;align-items:center;gap:8px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;color:var(--text);">
+          Import Backup
+          <input id="importData" type="file" accept="application/json" style="display:none">
+        </label>
+      </div>
+      <div id="backupMsg" class="success" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="eyebrow">Recent Sessions</div>
+      <h2>Training Log</h2>
+      <div id="sessionLog" class="muted">No sessions logged yet.</div>
+    </section>
+  </div>
+</div>
+
+<script>
+
+// ===== CLOUD CONFIG =====
+// Paste your Supabase Project URL and publishable key here.
+// The publishable key is safe for a browser app when Row Level Security is configured.
+const SUPABASE_URL = "https://gofvtbbezgmsgcanvzgk.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_go1yp8BTPFZ_sTk9y0l3RA_HjJ2NNbb";
+const CLOUD_CONFIGURED =
+  SUPABASE_URL.startsWith("https://") &&
+  !SUPABASE_URL.includes("PASTE_YOUR") &&
+  !SUPABASE_PUBLISHABLE_KEY.includes("PASTE_YOUR");
+
+let cloud = null;
+let cloudUser = null;
+
+if (CLOUD_CONFIGURED && window.supabase) {
+  cloud = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
+}
+
+const workoutPlans = {
+  0: {name:"Sunday — Baseball Fundamentals", intensity:"Skill Day", exercises:[
+    {name:"Warm-Up", prescription:"10–15 min", details:"Start with an easy walk or light jog for 3–5 minutes, then arm circles, shoulder rolls, trunk rotations, hip rotations, and a few gentle practice throws. The goal is to feel loose before swinging or throwing."},
+    {name:"Dry Swings", prescription:"2 × 10 swings", details:"Take controlled swings without hitting a ball. Focus on stance, balance, loading into the back hip, rotating through the hips and torso, and finishing under control. Do not swing as hard as possible."},
+    {name:"Tee / Soft-Toss Swings", prescription:"4–6 × 8–10 swings", details:"If you have access to a tee or someone can soft toss, work on clean contact. Start with easy controlled swings, then gradually increase intent. Take a short break between sets instead of rushing through dozens of swings."},
+    {name:"Swing Focus — Contact", prescription:"20–30 quality swings", details:"Pick one goal for the day: centre contact, keeping your head steady, driving through the middle, or staying balanced. Quality matters more than total swing count."},
+    {name:"Easy Throwing", prescription:"10–15 min", details:"Begin close to your partner and gradually increase distance only if your arm feels good. Throw smoothly at moderate effort. Avoid suddenly doing a huge number of maximum-effort throws while you are still building your arm up."},
+    {name:"Catching — Basic Receives", prescription:"30–50 catches", details:"Work with a partner if possible. Present the glove clearly, watch the ball all the way in, receive it softly, then bring the ball toward your throwing hand. Start with comfortable chest-height throws."},
+    {name:"Ground-Ball Practice", prescription:"15–25 reps", details:"If space allows, practise getting your body behind the ball, staying low, fielding out in front, bringing the ball toward the centre of your body, then setting your feet for a controlled throw."},
+    {name:"Cool Down", prescription:"5–10 min", details:"Walk around, gently loosen the shoulders and forearms, and do easy chest, lat, hip, and hamstring stretches. Stop throwing for the day if your elbow or shoulder develops sharp or increasing pain."}
+  ]},
+  1: {name:"Monday — Full Body Strength", intensity:"Hard", exercises:[
+    {name:"Leg Press", prescription:"3 × 8–12", details:"Feet about shoulder-width on the platform. Lower until your knees are comfortably bent without your lower back rounding, then press through the whole foot. Do not lock your knees hard at the top."},
+    {name:"Chest Press", prescription:"3 × 8–12", details:"Adjust the seat so handles line up around mid-chest. Keep shoulder blades gently back, press forward without shrugging, and return slowly."},
+    {name:"Lat Pulldown", prescription:"3 × 8–12", details:"Grip slightly wider than shoulders. Lean back only slightly, pull the bar toward your upper chest, pause briefly, then let it rise under control."},
+    {name:"Seated Row", prescription:"3 × 8–12", details:"Sit tall with ribs down. Pull the handle toward your lower ribs, squeeze your shoulder blades together, then extend your arms slowly without rounding forward."},
+    {name:"Leg Curl", prescription:"2 × 10–15", details:"Adjust the machine so the pad sits comfortably above your heels or ankles. Curl smoothly, pause briefly, and lower under control."},
+    {name:"Shoulder Press", prescription:"2 × 8–12", details:"Keep your back supported and ribs down. Press overhead without shrugging or arching your lower back. Use a light weight while learning."},
+    {name:"Dead Hang", prescription:"3 sets", details:"Hang for 10–30 seconds with a comfortable grip. This builds grip strength and prepares you for future pull-ups."},
+    {name:"Plank", prescription:"3 sets", details:"Hold 20–45 seconds with glutes and abs tight. Quality matters more than time."},
+    {name:"Easy Treadmill", prescription:"10 min", details:"Comfortable walking pace for cooldown. Slight incline is fine. You should be able to breathe normally and talk comfortably."}
+  ]},
+  2: {name:"Tuesday — Recovery + Mobility", intensity:"Easy", exercises:[
+    {name:"Easy Walk / Treadmill", prescription:"25–45 min", details:"Keep this genuinely easy. Walk outside or use the treadmill at a pace where you can comfortably hold a conversation. The purpose is recovery and extra movement, not exhaustion."},
+    {name:"Mobility", prescription:"10–15 min", details:"Do 2 rounds: wrist circles 30 sec each way, wall shoulder slides ×10, cat-cow ×8, world's greatest stretch ×5/side, hip flexor stretch 30 sec/side, hamstring stretch 30 sec/side, ankle rocks ×10/side, deep squat hold 20–30 sec."},
+    {name:"Light Core", prescription:"2–3 easy sets", details:"Pick 2: plank 20–30 sec, dead bug ×8/side, bird dog ×8/side, side plank 15–25 sec/side. Keep every rep controlled."},
+    {name:"Optional Dead Hang", prescription:"2 easy sets", details:"Hang 10–20 seconds. Keep this submaximal; it should feel like practice, not grip failure."}
+  ]},
+  3: {name:"Wednesday — Full Body Strength", intensity:"Hard", exercises:[
+    {name:"Leg Press", prescription:"3 × 8–12", details:"Use the same setup as Monday. Try to match or slightly beat your previous session only if form stays clean."},
+    {name:"Chest Press", prescription:"3 × 8–12", details:"Press smoothly, keep shoulders down, and stop with 2–3 reps still available."},
+    {name:"Lat Pulldown", prescription:"3 × 8–12", details:"Pull to upper chest without swinging. Focus on elbows moving down rather than yanking with your hands."},
+    {name:"Seated Row", prescription:"3 × 8–12", details:"Keep your torso still and pull toward the lower ribs. Pause briefly at the back."},
+    {name:"Leg Curl", prescription:"2 × 10–15", details:"Control both directions and avoid bouncing the weight stack."},
+    {name:"Shoulder Press", prescription:"2 × 8–12", details:"Use a comfortable range of motion and keep your lower back supported."},
+    {name:"Dead Hang", prescription:"3 sets", details:"10–30 seconds per set. Stop before grip completely fails."},
+    {name:"Plank", prescription:"3 sets", details:"20–45 seconds. Keep breathing while bracing your core."}
+  ]},
+  4: {name:"Thursday — Calisthenics Skill + Cardio", intensity:"Easy", exercises:[
+    {name:"Incline Push-Ups", prescription:"3 × 6–10", details:"Choose an incline that lets you move cleanly and without grinding. Use this as skill practice rather than a max-effort exercise."},
+    {name:"Dead Hang", prescription:"3 × 10–30 sec", details:"Relax your grip between sets. Aim for smooth, repeatable holds."},
+    {name:"Scapular Pulls", prescription:"3 × 5–8", details:"Keep elbows straight and move only through the shoulder blades. Think 'shoulders down away from ears.'"},
+    {name:"Hollow Hold", prescription:"3 × 10–20 sec", details:"Keep your lower back flat to the floor. Shorter, perfect holds are better than longer sloppy ones."},
+    {name:"Wrist + Shoulder Mobility", prescription:"10 min", details:"Wrist circles 30 sec each way, palm pulses ×10, gentle fingertip rocks ×8, wall shoulder slides ×10, arm circles ×10 each way, doorway chest stretch 30 sec/side, overhead lat stretch 30 sec/side."},
+    {name:"Easy Cardio", prescription:"20–30 min", details:"Use treadmill, bike, or elliptical at a relaxed pace. This should leave you feeling better than when you started."}
+  ]},
+  5: {name:"Friday — Full Body Strength", intensity:"Hard", exercises:[
+    {name:"Leg Press", prescription:"3 × 8–12", details:"Same setup as Monday. If you can get 12 clean reps on every set, consider the smallest weight increase next time."},
+    {name:"Chest Press", prescription:"3 × 8–12", details:"Slow return, controlled press. Do not bounce or slam the stack."},
+    {name:"Lat Pulldown", prescription:"3 × 8–12", details:"Pull toward upper chest, keep your neck relaxed, and avoid using momentum."},
+    {name:"Seated Row", prescription:"3 × 8–12", details:"Stay tall and squeeze your back at the end of each rep."},
+    {name:"Leg Curl", prescription:"2 × 10–15", details:"Keep hips planted and move smoothly through the range."},
+    {name:"Shoulder Press", prescription:"2 × 8–12", details:"Keep this controlled and relatively light while you are still new to the gym."},
+    {name:"Dead Hang", prescription:"3 sets", details:"10–30 seconds. Track your best comfortable hold over time."},
+    {name:"Plank", prescription:"3 sets", details:"20–45 seconds with steady breathing and full-body tension."}
+  ]},
+  6: {name:"Saturday — Casual Badminton", intensity:"Fun / Moderate", exercises:[
+    {name:"Warm-Up", prescription:"10 min", details:"Walk around the court, do gentle side steps, arm circles, shoulder rolls, ankle circles, and a few easy shadow swings before starting harder rallies."},
+    {name:"Easy Rallying", prescription:"10–15 min", details:"Start with relaxed cooperative rallies. Focus on timing, clean contact, and moving comfortably rather than trying to win every point immediately."},
+    {name:"Casual Games", prescription:"~90 min", details:"Play singles or doubles at a comfortable recreational intensity. Take water breaks between games. You do not need to make every rally maximal—this is your fun sport day and extra conditioning."},
+    {name:"Footwork Focus", prescription:"During games", details:"Try to recover toward the centre after shots, use small adjustment steps, and avoid planting your feet awkwardly when reaching. Good footwork will help both badminton and general athleticism."},
+    {name:"Cool Down", prescription:"10–15 min", details:"Walk slowly until your breathing settles, then do gentle calf, quad, hamstring, hip, shoulder, and forearm stretches. Rehydrate afterward."},
+    {name:"Total Session", prescription:"About 2 hours", details:"The two-hour target includes warm-up, games, water breaks, and cooldown. It does not need to be two continuous hours of hard play."}
+  ]}
+};
+
+const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+let selectedDay = new Date().getDay();
+let timerSeconds = 0, timerHandle = null, running = false;
+
+function storageGet(key){ return JSON.parse(localStorage.getItem(key) || "[]"); }
+function storageSet(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+function renderDay(day){
+  selectedDay = day;
+  const p = workoutPlans[day];
+  document.getElementById("dayTitle").textContent = p.name;
+  const list = document.getElementById("workoutList");
+  const dateKey = document.getElementById("weightDate").value || new Date().toISOString().slice(0,10);
+  const completion = JSON.parse(localStorage.getItem("atlasCompletion") || "{}");
+  const keyBase = `${dateKey}-${day}`;
+  list.innerHTML = `<div><span class="pill">${p.intensity}</span></div>` +
+    p.exercises.map((x, i) => {
+      const checked = completion[`${keyBase}-${i}`] ? "checked" : "";
+      return `
+      <details class="exercise-detail">
+        <summary>
+          <div>
+            <strong>${x.name}</strong>
+            <small>${x.prescription}</small>
+          </div>
+          <span class="chev">⌄</span>
+        </summary>
+        <div class="exercise-body">
+          <p>${x.details}</p>
+          <label class="complete-row">
+            <input type="checkbox" data-exercise-index="${i}" ${checked}>
+            <span>Mark complete</span>
+          </label>
+        </div>
+      </details>`;
+    }).join("");
+  document.querySelectorAll(".daybtn").forEach((b,i)=>b.classList.toggle("active",i===day));
+  document.querySelectorAll('[data-exercise-index]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const state = JSON.parse(localStorage.getItem("atlasCompletion") || "{}");
+      state[`${keyBase}-${cb.dataset.exerciseIndex}`] = cb.checked;
+      localStorage.setItem("atlasCompletion", JSON.stringify(state));
+      upsertCompletionCloud(`${keyBase}-${cb.dataset.exerciseIndex}`, cb.checked);
+    });
+  });
+}
+
+function initWeekNav(){
+  const nav = document.getElementById("weekNav");
+  dayNames.forEach((d,i)=>{
+    const b=document.createElement("button"); b.className="daybtn"; b.textContent=d;
+    b.onclick=()=>renderDay(i); nav.appendChild(b);
+  });
+}
+document.getElementById("todayBtn").onclick=()=>{
+  renderDay(new Date().getDay());
+  document.getElementById("weekNav").style.display="none";
+  document.getElementById("toggleWeekBtn").textContent="View Week";
+};
+document.getElementById("toggleWeekBtn").onclick=()=>{
+  const nav=document.getElementById("weekNav");
+  const hidden=nav.style.display==="none";
+  nav.style.display=hidden?"flex":"none";
+  document.getElementById("toggleWeekBtn").textContent=hidden?"Hide Week":"View Week";
+};
+
+function formatTime(s){
+  const h=String(Math.floor(s/3600)).padStart(2,"0");
+  const m=String(Math.floor((s%3600)/60)).padStart(2,"0");
+  const sec=String(s%60).padStart(2,"0");
+  return `${h}:${m}:${sec}`;
+}
+function tick(){ timerSeconds++; document.getElementById("timer").textContent=formatTime(timerSeconds); }
+document.getElementById("startBtn").onclick=()=>{ if(!running){ running=true; timerHandle=setInterval(tick,1000); } };
+document.getElementById("pauseBtn").onclick=()=>{ clearInterval(timerHandle); running=false; };
+document.getElementById("finishBtn").onclick=()=>{
+  clearInterval(timerHandle); running=false;
+  document.getElementById("durationManual").value = Math.max(1, Math.round(timerSeconds/60));
+};
+
+document.getElementById("saveWeight").onclick=()=>{
+  const date=document.getElementById("weightDate").value;
+  const weight=parseFloat(document.getElementById("weightInput").value);
+  if(!date || !weight){ document.getElementById("weightMsg").textContent="Enter a date and weight."; return; }
+  let data=storageGet("atlasWeights").filter(x=>x.date!==date);
+  data.push({date,weight}); data.sort((a,b)=>a.date.localeCompare(b.date)); storageSet("atlasWeights",data);
+  document.getElementById("weightMsg").textContent="Weight saved.";
+  renderWeight();
+  upsertWeightCloud({date,weight});
+};
+
+document.getElementById("saveSession").onclick=()=>{
+  const d=new Date();
+  const status=document.getElementById("dayStatus").value;
+  const isWorkout=status==="workout";
+  const duration=isWorkout ? parseInt(document.getElementById("durationManual").value || Math.round(timerSeconds/60) || 0) : 0;
+  const rating=isWorkout ? parseInt(document.getElementById("rating").value) : null;
+  const statusLabel=status==="rested" ? "Rested" : status==="no_workout" ? "No Workout" : "Workout Completed";
+  const entry={
+    date:d.toISOString().slice(0,10),
+    day:isWorkout ? workoutPlans[selectedDay].name : statusLabel,
+    status,
+    rating,
+    duration,
+    notes:document.getElementById("notes").value.trim()
+  };
+  const data=storageGet("atlasSessions"); data.unshift(entry); storageSet("atlasSessions",data);
+  document.getElementById("sessionMsg").textContent=statusLabel+" logged.";
+  timerSeconds=0; document.getElementById("timer").textContent="00:00:00";
+  document.getElementById("durationManual").value=""; document.getElementById("notes").value="";
+  renderSessions();
+  insertSessionCloud(entry);
+};
+
+function renderSessions(){
+  const data=storageGet("atlasSessions");
+  const el=document.getElementById("sessionLog");
+  if(!data.length){ el.textContent="No sessions logged yet."; return; }
+  el.innerHTML=data.slice(0,12).map(x=>`
+    <div class="log">
+      <strong>${x.date}</strong> — ${x.day}<br>
+      <span class="muted">${x.status==="workout" || !x.status ? `${x.duration} min · Rating ${x.rating}/5` : (x.status==="rested" ? "Rest day" : "No workout")}${x.notes ? " · "+x.notes : ""}</span>
+    </div>`).join("");
+}
+
+function renderWeight(){
+  const data=storageGet("atlasWeights");
+  const latest=document.getElementById("latestWeight"), change=document.getElementById("weightChange"), trend=document.getElementById("trendText");
+  if(!data.length){ latest.textContent="—"; change.textContent="—"; trend.textContent="Add morning weigh-ins to build your trend."; drawChart([]); return; }
+  latest.textContent=data[data.length-1].weight.toFixed(1)+" kg";
+  const delta=data[data.length-1].weight-data[0].weight;
+  change.textContent=(delta>0?"+":"")+delta.toFixed(1)+" kg";
+  const recent=data.slice(-7);
+  const avg=recent.reduce((a,b)=>a+b.weight,0)/recent.length;
+  trend.textContent=`Recent average (${recent.length} weigh-ins): ${avg.toFixed(1)} kg. Focus on the trend, not single-day fluctuations.`;
+  drawChart(data);
+}
+
+function drawChart(data){
+  const c=document.getElementById("chart"), ctx=c.getContext("2d");
+  const rect=c.getBoundingClientRect(); c.width=Math.max(600,Math.floor(rect.width*2)); c.height=460;
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.strokeStyle="#2b2f38"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(50,20); ctx.lineTo(50,c.height-45); ctx.lineTo(c.width-20,c.height-45); ctx.stroke();
+  if(data.length<1) return;
+  const vals=data.map(x=>x.weight), min=Math.min(...vals)-1, max=Math.max(...vals)+1;
+  const xs=data.map((_,i)=>50 + i*(c.width-80)/Math.max(1,data.length-1));
+  const ys=vals.map(v=>20+(max-v)*(c.height-75)/(max-min||1));
+  ctx.strokeStyle="#f5f7fb"; ctx.lineWidth=5; ctx.beginPath();
+  xs.forEach((x,i)=> i?ctx.lineTo(x,ys[i]):ctx.moveTo(x,ys[i])); ctx.stroke();
+  ctx.fillStyle="#f5f7fb"; xs.forEach((x,i)=>{ctx.beginPath();ctx.arc(x,ys[i],6,0,Math.PI*2);ctx.fill();});
+  ctx.fillStyle="#a6acb8"; ctx.font="24px system-ui";
+  ctx.fillText(max.toFixed(1)+" kg", 58, 34);
+  ctx.fillText(min.toFixed(1)+" kg", 58, c.height-55);
+}
+
+
+
+function setCloudStatus(text, ok=false){
+  const el=document.getElementById("cloudStatus");
+  if(el){ el.textContent=text; el.className=ok?"success":"muted"; }
+}
+function authMessage(text){ const el=document.getElementById("authMsg"); if(el) el.textContent=text; }
+
+async function upsertWeightCloud(item){
+  if(!cloudUser || !cloud) return;
+  const { error } = await cloud.from("weights").upsert({
+    user_id: cloudUser.id, weigh_date:item.date, weight_kg:item.weight
+  }, { onConflict:"user_id,weigh_date" });
+  if(error) console.warn(error);
+}
+async function insertSessionCloud(item){
+  if(!cloudUser || !cloud) return;
+  const payload={
+    user_id:cloudUser.id,
+    session_date:item.date,
+    workout_day:item.day,
+    rating:item.rating,
+    duration_minutes:item.duration,
+    notes:`[${item.status || "workout"}] ${item.notes || ""}`
+  };
+  const { error } = await cloud.from("sessions").insert(payload);
+  if(error) console.warn(error);
+}
+async function upsertCompletionCloud(key,value){
+  if(!cloudUser || !cloud) return;
+  const { error } = await cloud.from("completions").upsert({
+    user_id:cloudUser.id, completion_key:key, is_complete:value
+  }, { onConflict:"user_id,completion_key" });
+  if(error) console.warn(error);
+}
+async function pushLocalToCloud(){
+  if(!cloudUser || !cloud) return;
+  const weights=storageGet("atlasWeights");
+  for(const x of weights) await upsertWeightCloud(x);
+
+  // Prevent duplicate historical session uploads by using a local cloud marker.
+  const sessions=storageGet("atlasSessions");
+  const uploaded=JSON.parse(localStorage.getItem("atlasUploadedSessions") || "{}");
+  for(let i=0;i<sessions.length;i++){
+    const s=sessions[i];
+    const fingerprint=btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+    if(!uploaded[fingerprint]){
+      await insertSessionCloud(s);
+      uploaded[fingerprint]=true;
+    }
+  }
+  localStorage.setItem("atlasUploadedSessions",JSON.stringify(uploaded));
+
+  const completion=JSON.parse(localStorage.getItem("atlasCompletion") || "{}");
+  for(const [k,v] of Object.entries(completion)) await upsertCompletionCloud(k,v);
+}
+async function pullCloudToLocal(){
+  if(!cloudUser || !cloud) return;
+  const [{data:w,error:we},{data:s,error:se},{data:c,error:ce}] = await Promise.all([
+    cloud.from("weights").select("weigh_date,weight_kg").order("weigh_date",{ascending:true}),
+    cloud.from("sessions").select("session_date,workout_day,rating,duration_minutes,notes,created_at").order("created_at",{ascending:false}),
+    cloud.from("completions").select("completion_key,is_complete")
+  ]);
+  if(we||se||ce){ console.warn(we||se||ce); return; }
+
+  const localWeights=storageGet("atlasWeights");
+  const wm=new Map(localWeights.map(x=>[x.date,x]));
+  (w||[]).forEach(x=>wm.set(x.weigh_date,{date:x.weigh_date,weight:Number(x.weight_kg)}));
+  storageSet("atlasWeights",[...wm.values()].sort((a,b)=>a.date.localeCompare(b.date)));
+
+  // Merge remote sessions into local using content fingerprints
+  const localSessions=storageGet("atlasSessions");
+  const all=[...localSessions];
+  const seen=new Set(localSessions.map(x=>JSON.stringify([x.date,x.day,x.rating,x.duration,x.notes||""])));
+  (s||[]).forEach(x=>{
+    const rawNotes=x.notes||"";
+    const sm=rawNotes.match(/^\[(workout|rested|no_workout)\]\s*/);
+    const status=sm ? sm[1] : (x.workout_day==="Rested" ? "rested" : x.workout_day==="No Workout" ? "no_workout" : "workout");
+    const item={date:x.session_date,day:x.workout_day,status,rating:x.rating,duration:x.duration_minutes,notes:rawNotes.replace(/^\[(workout|rested|no_workout)\]\s*/,"")};
+    const k=JSON.stringify([item.date,item.day,item.rating,item.duration,item.notes]);
+    if(!seen.has(k)){ seen.add(k); all.push(item); }
+  });
+  all.sort((a,b)=>b.date.localeCompare(a.date));
+  storageSet("atlasSessions",all);
+
+  const lc=JSON.parse(localStorage.getItem("atlasCompletion") || "{}");
+  (c||[]).forEach(x=>lc[x.completion_key]=x.is_complete);
+  localStorage.setItem("atlasCompletion",JSON.stringify(lc));
+}
+async function syncCloud(){
+  if(!cloud || !cloudUser){ authMessage("Sign in first."); return; }
+  setCloudStatus("Syncing…");
+  await pushLocalToCloud();
+  await pullCloudToLocal();
+  renderWeight(); renderSessions(); renderDay(selectedDay);
+  setCloudStatus(`Synced as ${cloudUser.email}`,true);
+  authMessage("Cloud sync complete.");
+}
+async function refreshAuthUI(){
+  if(!cloud){
+    setCloudStatus("Local mode — add your Supabase URL and publishable key to index.html.");
+    return;
+  }
+  const {data:{session}}=await cloud.auth.getSession();
+  cloudUser=session?.user || null;
+  document.getElementById("signOutBtn").style.display=cloudUser?"inline-block":"none";
+  if(cloudUser){
+    setCloudStatus(`Signed in as ${cloudUser.email}`,true);
+    await syncCloud();
+  } else {
+    setCloudStatus("Cloud connected — sign in to sync.");
+  }
+}
+
+document.getElementById("sendCodeBtn").onclick=async()=>{
+  if(!cloud){ authMessage("Cloud is not configured yet."); return; }
+  const email=document.getElementById("authEmail").value.trim();
+  if(!email){ authMessage("Enter your email first."); return; }
+  authMessage("Sending code…");
+  const {error}=await cloud.auth.signInWithOtp({
+    email,
+    options:{ shouldCreateUser:true }
+  });
+  if(error){ authMessage(error.message); return; }
+  authMessage("Code sent. Check your email, then enter the 6-digit code here.");
+};
+
+document.getElementById("verifyCodeBtn").onclick=async()=>{
+  if(!cloud){ authMessage("Cloud is not configured yet."); return; }
+  const email=document.getElementById("authEmail").value.trim();
+  const token=document.getElementById("authOtp").value.trim();
+  if(!email||!token){ authMessage("Enter your email and the 6-digit code."); return; }
+  authMessage("Verifying code…");
+  const {data,error}=await cloud.auth.verifyOtp({ email, token, type:"email" });
+  if(error){ authMessage(error.message); return; }
+  cloudUser=data.user || data.session?.user || null;
+  authMessage("Verified — you’re signed in.");
+  document.getElementById("authOtp").value="";
+  await refreshAuthUI();
+};
+document.getElementById("signOutBtn").onclick=async()=>{
+  if(cloud) await cloud.auth.signOut();
+  cloudUser=null;
+  setCloudStatus("Cloud connected — signed out.");
+  document.getElementById("signOutBtn").style.display="none";
+  authMessage("Signed out. Local data stays on this device.");
+};
+document.getElementById("syncNowBtn").onclick=syncCloud;
+
+document.getElementById("exportData").onclick=()=>{
+  const payload={
+    exportedAt:new Date().toISOString(),
+    version:1,
+    atlasWeights:storageGet("atlasWeights"),
+    atlasSessions:storageGet("atlasSessions"),
+    atlasCompletion:JSON.parse(localStorage.getItem("atlasCompletion") || "{}")
+  };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`atlas-training-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  document.getElementById("backupMsg").textContent="Backup exported.";
+};
+
+document.getElementById("importData").addEventListener("change",(e)=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(data.atlasWeights) storageSet("atlasWeights",data.atlasWeights);
+      if(data.atlasSessions) storageSet("atlasSessions",data.atlasSessions);
+      if(data.atlasCompletion) localStorage.setItem("atlasCompletion",JSON.stringify(data.atlasCompletion));
+      renderWeight(); renderSessions(); renderDay(selectedDay);
+      document.getElementById("backupMsg").textContent="Backup restored successfully.";
+    }catch(err){
+      document.getElementById("backupMsg").textContent="Could not read that backup file.";
+    }
+  };
+  reader.readAsText(file);
+});
+
+
+const dayStatusEl=document.getElementById("dayStatus");
+function updateDayStatusUI(){
+  const isWorkout=dayStatusEl.value==="workout";
+  document.getElementById("rating").disabled=!isWorkout;
+  document.getElementById("durationManual").disabled=!isWorkout;
+  if(!isWorkout){
+    document.getElementById("durationManual").value="";
+    clearInterval(timerHandle); running=false;
+  }
+}
+dayStatusEl.addEventListener("change",updateDayStatusUI);
+updateDayStatusUI();
+
+const today=new Date();
+document.getElementById("todayText").textContent=today.toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+document.getElementById("weightDate").value=today.toISOString().slice(0,10);
+initWeekNav(); renderDay(selectedDay); renderSessions(); renderWeight(); refreshAuthUI();
+window.addEventListener("resize",renderWeight);
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", ()=>navigator.serviceWorker.register("service-worker.js"));
+}
+</script>
+</body>
+</html>
